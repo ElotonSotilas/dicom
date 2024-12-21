@@ -1,14 +1,19 @@
-use std::{fmt::{Debug, Display}, rc::Rc};
-
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use std::{
+    borrow::Cow,
+    cell::UnsafeCell,
+    fmt::{Debug, Display},
+    rc::Rc,
+};
 
-pub trait DicomTag: Debug + ToString {
+pub trait DicomTag: Debug + Display {
     fn name(&self) -> String;
-    fn code(&self) -> (u16, u16);
-    fn vr(&mut self) -> &mut VisualRepresentation;
+    fn tag(&self) -> (u16, u16);
+    fn vr(&self) -> VisualRepresentation;
     fn group(&self) -> u16;
     fn element(&self) -> Option<u16>;
     fn is_deprecated(&self) -> bool;
+    fn multiplicity(&self) -> &str;
 }
 
 pub enum DicomValue<'a> {
@@ -17,58 +22,63 @@ pub enum DicomValue<'a> {
     ObjectVec(Vec<Rc<dyn DicomTag>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VisualRepresentation {
-    AE(String),                 // Application Entity
-    AS(String),                 // Age String
-    AT(String),                 // Attribute Tag
-    CS(String),                 // Code String
-    DA(NaiveDate),              // Date
-    DS(String),                 // Decimal String
-    DT(NaiveDateTime),          // DateTime
-    FL(f32),                    // Floating Point Single
-    FD(f64),                    // Floating Point Double
-    IS(String),                 // Integer String
-    LO(String),                 // Long String
-    LT(String),                 // Long Text
-    OB(Vec<u8>),                // Other Byte String
-    OD(Vec<f64>),               // Other Double String
-    OF(Vec<f32>),               // Other Float String
-    OL(Vec<u32>),               // Other Long String
-    OV(Vec<i64>),               // Other Very Long String
-    OW(Vec<u16>),               // Other Word String
-    PN(String),                 // Person Name
-    SH(String),                 // Short String
-    SL(i32),                    // Signed Long
-    SQ(Vec<Rc<dyn DicomTag>>),  // Sequence of Items
-    SS(i16),                    // Signed Short
-    ST(String),                 // Short Text
-    SV(i64),                    // Signed Very Long
-    TM(NaiveTime),              // Time
-    UC(String),                 // Unlimited Characters
-    UI(String),                 // Unique Identifier (UID)
-    UL(u32),                    // Unsigned Long
-    UN(Vec<u8>),                // Unknown
-    UR(String),                 // Universal Resource Identifier
-    US(u16),                    // Unsigned Short
-    UT(String),                 // Unlimited Text
+    AE(Cow<'static, str>),     // Application Entity
+    AS(Cow<'static, str>),     // Age String
+    AT(Cow<'static, str>),     // Attribute Tag
+    CS(Cow<'static, str>),     // Code String
+    DA(NaiveDate),             // Date
+    DS(Cow<'static, str>),     // Decimal String
+    DT(NaiveDateTime),         // DateTime
+    FL(f32),                   // Floating Point Single
+    FD(f64),                   // Floating Point Double
+    IS(Cow<'static, str>),     // Integer String
+    LO(Cow<'static, str>),     // Long String
+    LT(Cow<'static, str>),     // Long Text
+    OB(Vec<u8>),               // Other Byte String
+    OD(Vec<f64>),              // Other Double String
+    OF(Vec<f32>),              // Other Float String
+    OL(Vec<u32>),              // Other Long String
+    OV(Vec<i64>),              // Other Very Long String
+    OW(Vec<u16>),              // Other Word String
+    PN(Cow<'static, str>),     // Person Name
+    SH(Cow<'static, str>),     // Short String
+    SL(i32),                   // Signed Long
+    SQ(Vec<Rc<dyn DicomTag>>), // Sequence of Items
+    SS(i16),                   // Signed Short
+    ST(Cow<'static, str>),     // Short Text
+    SV(i64),                   // Signed Very Long
+    TM(NaiveTime),             // Time
+    UC(Cow<'static, str>),     // Unlimited Characters
+    UI(Cow<'static, str>),     // Unique Identifier (UID)
+    UL(u32),                   // Unsigned Long
+    UN(Vec<u8>),               // Unknown
+    UR(Cow<'static, str>),     // Universal Resource Identifier
+    US(u16),                   // Unsigned Short
+    UT(Cow<'static, str>),     // Unlimited Text
 }
+
+impl !Send for VisualRepresentation {}
+impl !Sync for VisualRepresentation {}
 
 impl VisualRepresentation {
     pub fn from_string(vr: &str, value: &str) -> Self {
         match vr {
-            "AE" => VisualRepresentation::AE(value.to_string()),
-            "AS" => VisualRepresentation::AS(value.to_string()),
-            "AT" => VisualRepresentation::AT(value.to_string()),
-            "CS" => VisualRepresentation::CS(value.to_string()),
+            "AE" => VisualRepresentation::AE(value.to_string().into()),
+            "AS" => VisualRepresentation::AS(value.to_string().into()),
+            "AT" => VisualRepresentation::AT(value.to_string().into()),
+            "CS" => VisualRepresentation::CS(value.to_string().into()),
             "DA" => VisualRepresentation::DA(NaiveDate::parse_from_str(value, "%Y%m%d").unwrap()),
-            "DS" => VisualRepresentation::DS(value.to_string()),
-            "DT" => VisualRepresentation::DT(NaiveDateTime::parse_from_str(value, "%Y%m%d%H%M%S%.6f").unwrap()),
+            "DS" => VisualRepresentation::DS(value.to_string().into()),
+            "DT" => VisualRepresentation::DT(
+                NaiveDateTime::parse_from_str(value, "%Y%m%d%H%M%S%.6f").unwrap(),
+            ),
             "FL" => VisualRepresentation::FL(value.parse().unwrap()),
             "FD" => VisualRepresentation::FD(value.parse().unwrap()),
-            "IS" => VisualRepresentation::IS(value.to_string()),
-            "LO" => VisualRepresentation::LO(value.to_string()),
-            "LT" => VisualRepresentation::LT(value.to_string()),
+            "IS" => VisualRepresentation::IS(value.to_string().into()),
+            "LO" => VisualRepresentation::LO(value.to_string().into()),
+            "LT" => VisualRepresentation::LT(value.to_string().into()),
             "OB" => VisualRepresentation::OB(value.as_bytes().to_vec()),
             "OD" => VisualRepresentation::OD(
                 value
@@ -100,220 +110,199 @@ impl VisualRepresentation {
                     .map(|v| v.parse().unwrap())
                     .collect(),
             ),
-            "PN" => VisualRepresentation::PN(value.to_string()),
-            "SH" => VisualRepresentation::SH(value.to_string()),
+            "PN" => VisualRepresentation::PN(value.to_string().into()),
+            "SH" => VisualRepresentation::SH(value.to_string().into()),
             "SL" => VisualRepresentation::SL(value.parse().unwrap()),
             "SQ" => VisualRepresentation::SQ(vec![]),
             "SS" => VisualRepresentation::SS(value.parse().unwrap()),
-            "ST" => VisualRepresentation::ST(value.to_string()),
+            "ST" => VisualRepresentation::ST(value.to_string().into()),
             "SV" => VisualRepresentation::SV(value.parse().unwrap()),
-            "TM" => VisualRepresentation::TM(NaiveTime::parse_from_str(value, "%H%M%S%.6f").unwrap()),
-            "UC" => VisualRepresentation::UC(value.to_string()),
-            "UI" => VisualRepresentation::UI(value.to_string()),
+            "TM" => {
+                VisualRepresentation::TM(NaiveTime::parse_from_str(value, "%H%M%S%.6f").unwrap())
+            }
+            "UC" => VisualRepresentation::UC(value.to_string().into()),
+            "UI" => VisualRepresentation::UI(value.to_string().into()),
             "UL" => VisualRepresentation::UL(value.parse().unwrap()),
             "UN" => VisualRepresentation::UN(value.as_bytes().to_vec()),
-            "UR" => VisualRepresentation::UR(value.to_string()),
+            "UR" => VisualRepresentation::UR(value.to_string().into()),
             "US" => VisualRepresentation::US(value.parse().unwrap()),
-            "UT" => VisualRepresentation::UT(value.to_string()),
+            "UT" => VisualRepresentation::UT(value.to_string().into()),
             _ => VisualRepresentation::UN(value.as_bytes().to_vec()),
         }
     }
 
     pub fn new(vr: &str) -> Self {
         match vr {
-            "AE" => VisualRepresentation::AE(String::new()),
-            "AS" => VisualRepresentation::AS(String::new()),
-            "AT" => VisualRepresentation::AT(String::new()),
-            "CS" => VisualRepresentation::CS(String::new()),
+            "AE" => VisualRepresentation::AE(Cow::default()),
+            "AS" => VisualRepresentation::AS(Cow::default()),
+            "AT" => VisualRepresentation::AT(Cow::default()),
+            "CS" => VisualRepresentation::CS(Cow::default()),
             "DA" => VisualRepresentation::DA(NaiveDate::default()),
-            "DS" => VisualRepresentation::DS(String::new()),
+            "DS" => VisualRepresentation::DS(Cow::default()),
             "DT" => VisualRepresentation::DT(NaiveDateTime::default()),
             "FL" => VisualRepresentation::FL(0.0),
             "FD" => VisualRepresentation::FD(0.0),
-            "IS" => VisualRepresentation::IS(String::new()),
-            "LO" => VisualRepresentation::LO(String::new()),
-            "LT" => VisualRepresentation::LT(String::new()),
+            "IS" => VisualRepresentation::IS(Cow::default()),
+            "LO" => VisualRepresentation::LO(Cow::default()),
+            "LT" => VisualRepresentation::LT(Cow::default()),
             "OB" => VisualRepresentation::OB(vec![]),
             "OD" => VisualRepresentation::OD(vec![]),
             "OF" => VisualRepresentation::OF(vec![]),
             "OL" => VisualRepresentation::OL(vec![]),
             "OV" => VisualRepresentation::OV(vec![]),
             "OW" => VisualRepresentation::OW(vec![]),
-            "PN" => VisualRepresentation::PN(String::new()),
-            "SH" => VisualRepresentation::SH(String::new()),
+            "PN" => VisualRepresentation::PN(Cow::default()),
+            "SH" => VisualRepresentation::SH(Cow::default()),
             "SL" => VisualRepresentation::SL(0),
             "SQ" => VisualRepresentation::SQ(vec![]),
             "SS" => VisualRepresentation::SS(0),
-            "ST" => VisualRepresentation::ST(String::new()),
+            "ST" => VisualRepresentation::ST(Cow::default()),
             "SV" => VisualRepresentation::SV(0),
             "TM" => VisualRepresentation::TM(NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
-            "UC" => VisualRepresentation::UC(String::new()),
-            "UI" => VisualRepresentation::UI(String::new()),
+            "UC" => VisualRepresentation::UC(Cow::default()),
+            "UI" => VisualRepresentation::UI(Cow::default()),
             "UL" => VisualRepresentation::UL(0),
             "UN" => VisualRepresentation::UN(vec![]),
-            "UR" => VisualRepresentation::UR(String::new()),
+            "UR" => VisualRepresentation::UR(Cow::default()),
             "US" => VisualRepresentation::US(0),
-            "UT" => VisualRepresentation::UT(String::new()),
+            "UT" => VisualRepresentation::UT(Cow::default()),
             _ => VisualRepresentation::UN(vec![]),
         }
     }
 
-    pub fn set<T>(&mut self, value: DicomValue) -> &mut Self
-    {
-        match self {
-            VisualRepresentation::AE(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::AS(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::AT(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::CS(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::DA(v) => {
-                *v = NaiveDate::parse_from_str(&value.to_string(), "%Y%m%d").unwrap();
-                self
-            }
-            VisualRepresentation::DS(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::DT(v) => {
-                *v = NaiveDateTime::parse_from_str(&value.to_string(), "%Y%m%d%H%M%S%.6f").unwrap();
-                self
-            }
-            VisualRepresentation::FL(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::FD(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::IS(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::LO(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::LT(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::OB(v) => {
-                *v = value.to_string().as_bytes().to_vec();
-                self
-            }
-            VisualRepresentation::OD(v) => {
-                *v = value
-                    .to_string()
-                    .split_whitespace()
-                    .map(|s| s.parse::<f64>().unwrap())
-                    .collect::<Vec<_>>();
-                self
-            }
-            VisualRepresentation::OF(v) => {
-                *v = value
-                    .to_string()
-                    .split_whitespace()
-                    .map(|s| s.parse::<f32>().unwrap())
-                    .collect::<Vec<_>>();
-                self
-            }
-            VisualRepresentation::OL(v) => {
-                *v = value
-                    .to_string()
-                    .split_whitespace()
-                    .map(|s| s.parse::<u32>().unwrap())
-                    .collect::<Vec<_>>();
-                self
-            }
-            VisualRepresentation::OV(v) => {
-                *v = value
-                    .to_string()
-                    .split_whitespace()
-                    .map(|s| s.parse::<i64>().unwrap())
-                    .collect::<Vec<_>>();
-                self
-            }
-            VisualRepresentation::OW(v) => {
-                *v = value
-                    .to_string()
-                    .split_whitespace()
-                    .map(|s| s.parse::<u16>().unwrap())
-                    .collect::<Vec<_>>();
-                self
-            }
-            VisualRepresentation::PN(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::SH(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::SL(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::SQ(v) => {
-                *v = value.object_vec().into_iter().collect();
-                self
-            }
-            VisualRepresentation::SS(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::ST(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::SV(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::TM(v) => {
-                *v = NaiveTime::parse_from_str(&value.to_string(), "%H%M%S%.6f").unwrap();
-                self
-            }
-            VisualRepresentation::UC(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::UI(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::UL(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::UN(v) => {
-                *v = value.to_string().as_bytes().to_vec();
-                self
-            }
-            VisualRepresentation::UR(v) => {
-                *v = value.to_string();
-                self
-            }
-            VisualRepresentation::US(v) => {
-                *v = value.to_string().parse().unwrap();
-                self
-            }
-            VisualRepresentation::UT(v) => {
-                *v = value.to_string();
-                self
-            }
+    pub fn set(&self, value: DicomValue) -> &Self {
+        // SAFETY: This is safe because the inner value is set based on the type of the VisualRepresentation
+        unsafe { self.set_inner(value) }
+    }
+
+    unsafe fn set_inner(&self, value: DicomValue) -> &Self {
+        let mutable_self = UnsafeCell::new(self.clone());
+        unsafe {
+            match &mut *mutable_self.get() {
+                VisualRepresentation::AE(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::AS(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::AT(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::CS(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::DA(v) => {
+                    *v = NaiveDate::parse_from_str(&value.to_string(), "%Y%m%d").unwrap();
+                }
+                VisualRepresentation::DS(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::DT(v) => {
+                    *v = NaiveDateTime::parse_from_str(&value.to_string(), "%Y%m%d%H%M%S%.6f")
+                        .unwrap();
+                }
+                VisualRepresentation::FL(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::FD(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::IS(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::LO(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::LT(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::OB(v) => {
+                    *v = value.to_string().as_bytes().to_vec();
+                }
+                VisualRepresentation::OD(v) => {
+                    *v = value
+                        .to_string()
+                        .split_whitespace()
+                        .map(|s| s.parse::<f64>().unwrap())
+                        .collect::<Vec<_>>();
+                }
+                VisualRepresentation::OF(v) => {
+                    *v = value
+                        .to_string()
+                        .split_whitespace()
+                        .map(|s| s.parse::<f32>().unwrap())
+                        .collect::<Vec<_>>();
+                }
+                VisualRepresentation::OL(v) => {
+                    *v = value
+                        .to_string()
+                        .split_whitespace()
+                        .map(|s| s.parse::<u32>().unwrap())
+                        .collect::<Vec<_>>();
+                }
+                VisualRepresentation::OV(v) => {
+                    *v = value
+                        .to_string()
+                        .split_whitespace()
+                        .map(|s| s.parse::<i64>().unwrap())
+                        .collect::<Vec<_>>();
+                }
+                VisualRepresentation::OW(v) => {
+                    *v = value
+                        .to_string()
+                        .split_whitespace()
+                        .map(|s| s.parse::<u16>().unwrap())
+                        .collect::<Vec<_>>();
+                }
+                VisualRepresentation::PN(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::SH(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::SL(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::SQ(v) => {
+                    *v = value.object_vec().into_iter().collect();
+                }
+                VisualRepresentation::SS(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::ST(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::SV(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::TM(v) => {
+                    *v = NaiveTime::parse_from_str(&value.to_string(), "%H%M%S%.6f").unwrap();
+                }
+                VisualRepresentation::UC(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::UI(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::UL(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::UN(v) => {
+                    *v = value.to_string().as_bytes().to_vec();
+                }
+                VisualRepresentation::UR(v) => {
+                    *v = value.to_string().into();
+                }
+                VisualRepresentation::US(v) => {
+                    *v = value.to_string().parse().unwrap();
+                }
+                VisualRepresentation::UT(v) => {
+                    *v = value.to_string().into();
+                }
+            };
         }
+
+        self
     }
 }
 
@@ -321,13 +310,9 @@ impl Display for DicomValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DicomValue::String(v) => write!(f, "{}", v.to_string()),
-            DicomValue::Object(v) => write!(f, "{}", v.to_string()),
+            DicomValue::Object(v) => write!(f, "{:#?}", v),
             DicomValue::ObjectVec(v) => {
-                let mut s = String::new();
-                for obj in v {
-                    s.push_str(&obj.to_string());
-                }
-                write!(f, "{}", s)
+                write!(f, "{:#?}", v)
             }
         }
     }

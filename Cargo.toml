@@ -6,8 +6,14 @@ edition = "2021"
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+futures-io = { version = "0.3.31" }
 
 [dependencies]
+# Error handling
+thiserror = { version = "2", optional = false }
+anyhow = { version = "1", optional = false }
+
 # Async runtime and HTTP client
 tokio = { version = "1", features = ["full"], optional = true }
 reqwest = { version = "0.12", features = ["json"], optional = true }

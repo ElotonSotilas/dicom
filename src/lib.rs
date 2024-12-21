@@ -1,3 +1,8 @@
+#![allow(incomplete_features)] // Don't bother me with unstable features :D
+
+#![feature(negative_impls)] // Required for negative trait impls
+#![feature(inherent_associated_types)] // Required for associated types in traits
+
 // Core module always included
 pub mod core;
 
