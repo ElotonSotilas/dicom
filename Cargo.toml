@@ -1,0 +1,79 @@
+[package]
+name = "dicom"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+
+[dependencies]
+# Async runtime and HTTP client
+tokio = { version = "1", features = ["full"], optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+
+# Serialization
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+bincode = { version = "1.3", optional = true }
+
+# Compression support
+zstd = { version = "0.13", optional = true }
+lzma = { version = "0.2", optional = true }
+brotli = { version = "7", optional = true }
+
+# Image processing and conversion
+image = { version = "0.25", optional = true }
+jpeg-decoder = { version = "0.3", optional = true }
+
+# CLI tools
+clap = { version = "4", features = ["derive"], optional = true }
+
+# Filesystem traversal and DICOMDIR support
+walkdir = { version = "2", optional = true }
+
+# Logging and diagnostics
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+
+# Testing utilities
+assert_fs = { version = "1", optional = true }
+
+# Encryption support for PACS communication
+rustls = { version = "0.23", optional = true }
+
+# FHIR support
+fhir-rs = { version = "0.1", optional = true }
+
+# Time
+chrono = { version = "0.4", optional = true }
+
+[features]
+default = [
+    "tokio",
+    "reqwest",
+    "serde",
+    "bincode",
+    "image",
+    "jpeg-decoder",
+    "zstd",
+    "lzma",
+    "brotli",
+    "clap",
+    "walkdir",
+    "tracing",
+    "tracing-subscriber",
+    "assert_fs",
+    "rustls",
+    "fhir-rs",
+    "chrono"
+]
+net = ["tokio", "reqwest"]
+serde = ["dep:serde", "bincode", "serde_json", "fhir-rs", "chrono"]
+images = ["image", "jpeg-decoder"]
+compress = ["zstd", "lzma", "brotli"]
+cli = ["clap"]
+fs = ["walkdir"]
+log = ["tracing", "tracing-subscriber"]
+test = ["assert_fs"]
+secure = ["rustls"]
